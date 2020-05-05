@@ -5,6 +5,7 @@ import * as route from 'koa-route';
 import * as koaLogger from 'koa-logger';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
+import * as treekill from 'tree-kill';
 
 import { PreviewResponse, Renderer, ScreenshotError, SerializedResponse } from './renderer';
 import { Config, ConfigManager } from './config';
@@ -20,14 +21,16 @@ export class Rendertron {
   private port = process.env.PORT || this.config.port;
   private host = process.env.HOST || this.config.host;
 
-  async createRenderer(config: Config) {
-    const browser = await puppeteer.launch({ args: ['--fast-start', '--disable-extensions', '--no-sandbox'] });
+  browser: puppeteer.Browser | undefined;
 
-    browser.on('disconnected', () => {
+  async createRenderer(config: Config) {
+    this.browser = await puppeteer.launch({ args: ['--fast-start', '--disable-extensions', '--no-sandbox'] });
+
+    this.browser.on('disconnected', () => {
       this.createRenderer(config);
     });
 
-    this.renderer = new Renderer(browser, config);
+    this.renderer = new Renderer(this.browser, config);
   }
 
   async initialize() {
@@ -179,6 +182,15 @@ export class Rendertron {
       ctx.status = err.type === 'Forbidden' ? 403 : 500;
     }
   }
+
+  async cleanup() {
+    console.log('Closing browsers...');
+    await this.browser?.close();
+
+    if (this.browser) {
+      treekill(this.browser.process().pid, 'SIGKILL');
+    }
+  }
 }
 
 async function logUncaughtError(error: Error) {
@@ -203,4 +215,6 @@ if (!module.parent) {
 
   process.on('uncaughtException', logUncaughtError);
   process.on('unhandledRejection', logUnhandledRejection);
+  process.on('beforeExit', rendertron.cleanup);
+  process.on('exit', rendertron.cleanup);
 }
