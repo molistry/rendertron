@@ -52,10 +52,7 @@ export class Rendertron {
       route.get('/_ah/health', (ctx: Koa.Context) => ctx.body = 'OK'));
 
     // Optionally enable cache for rendering requests.
-    if (this.config.cache === 'datastore') {
-      const { DatastoreCache } = await import('./datastore-cache');
-      this.app.use(new DatastoreCache().middleware());
-    } else if (this.config.cache === 'memory') {
+    if (this.config.cache === 'memory') {
       const { MemoryCache } = await import('./memory-cache');
       this.app.use(new MemoryCache().middleware());
     }

@@ -26,7 +26,7 @@ const CONFIG_PATH = path.resolve(__dirname, '../config.json');
 
 
 export type Config = {
-    cache: 'datastore' | 'memory' | null;
+    cache: 'memory' | null;
     timeout: number;
     port: string;
     host: string
