@@ -21,7 +21,7 @@ export class Rendertron {
   private port = process.env.PORT || this.config.port;
   private host = process.env.HOST || this.config.host;
 
-  browser: puppeteer.Browser | undefined;
+  private browser: puppeteer.Browser | undefined;
 
   async createRenderer(config: Config) {
     this.browser = await puppeteer.launch({ args: ['--fast-start', '--disable-extensions', '--no-sandbox'] });

@@ -112,7 +112,17 @@ export class Renderer {
       // This should only occur when the page is about:blank. See
       // https://github.com/GoogleChrome/puppeteer/blob/v1.5.0/docs/api.md#pagegotourl-options.
       await page.close();
-      return {status: 400, customHeaders: new Map(), content: ''};
+      if (preview) {
+        return {
+          title: null,
+          description: null,
+          domain: await this.getDomainName(null, requestUrl),
+          img: null,
+          status: 408
+        };
+      } else {
+        return { status: 408, customHeaders: new Map(), content: '' };
+      }
     }
 
     // Disable access to compute metadata. See
@@ -302,18 +312,21 @@ export class Renderer {
     });
   }
 
-  async getDomainName(page: Page, uri: string) {
-    const domainName = await page.evaluate(() => {
-      const canonicalLink = document.querySelector('link[rel=canonical]') as HTMLLinkElement;
-      if (canonicalLink != null && canonicalLink.href.length > 0) {
-        return canonicalLink.href;
-      }
-      const ogUrlMeta = document.querySelector('meta[property="og:url"]') as HTMLMetaElement;
-      if (ogUrlMeta != null && ogUrlMeta.content.length > 0) {
-        return ogUrlMeta.content;
-      }
-      return null;
-    });
+  async getDomainName(page: Page | null, uri: string) {
+    let domainName;
+    if (page) {
+      domainName = await page.evaluate(() => {
+        const canonicalLink = document.querySelector('link[rel=canonical]') as HTMLLinkElement;
+        if (canonicalLink != null && canonicalLink.href.length > 0) {
+          return canonicalLink.href;
+        }
+        const ogUrlMeta = document.querySelector('meta[property="og:url"]') as HTMLMetaElement;
+        if (ogUrlMeta != null && ogUrlMeta.content.length > 0) {
+          return ogUrlMeta.content;
+        }
+        return null;
+      });
+    }
     return domainName != null
       ? new URL(domainName).hostname.replace('www.', '')
       : new URL(uri).hostname.replace('www.', '');
