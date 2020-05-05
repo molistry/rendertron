@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
-import { Renderer, ScreenshotError } from './renderer';
+import { PreviewResponse, Renderer, ScreenshotError, SerializedResponse } from './renderer';
 import { Config, ConfigManager } from './config';
 
 /**
@@ -23,7 +23,7 @@ export class Rendertron {
   private host = process.env.HOST || this.config.host;
 
   async createRenderer(config: Config) {
-    const browser = await puppeteer.launch({ args: ['--no-sandbox'] });
+    const browser = await puppeteer.launch({ args: ['--fast-start', '--disable-extensions', '--no-sandbox'] });
 
     browser.on('disconnected', () => {
       this.createRenderer(config);
@@ -65,6 +65,8 @@ export class Rendertron {
 
     this.app.use(
       route.get('/render/:url(.*)', this.handleRenderRequest.bind(this)));
+    this.app.use(
+      route.get('/preview', this.handlePreviewRequest.bind(this)));
     this.app.use(route.get(
       '/screenshot/:url(.*)', this.handleScreenshotRequest.bind(this)));
     this.app.use(route.post(
@@ -102,7 +104,7 @@ export class Rendertron {
 
     const mobileVersion = 'mobile' in ctx.query ? true : false;
 
-    const serialized = await this.renderer.serialize(url, mobileVersion);
+    const serialized = await this.renderer.serialize(url, mobileVersion) as SerializedResponse;
 
     for (const key in this.config.headers) {
       ctx.set(key, this.config.headers[key]);
@@ -114,6 +116,31 @@ export class Rendertron {
     serialized.customHeaders.forEach((value: string, key: string) => ctx.set(key, value));
     ctx.status = serialized.status;
     ctx.body = serialized.content;
+  }
+
+  async handlePreviewRequest(ctx: Koa.Context) {
+    const url = ctx.request.query.url;
+    if (!this.renderer) {
+      throw (new Error('No renderer initalized yet.'));
+    }
+
+    if (this.restricted(url)) {
+      ctx.status = 403;
+      return;
+    }
+
+    const mobileVersion = 'mobile' in ctx.query ? true : false;
+
+    const preview = await this.renderer.serialize(url, mobileVersion, true) as PreviewResponse;
+
+    for (const key in this.config.headers) {
+      ctx.set(key, this.config.headers[key]);
+    }
+
+    // Mark the response as coming from Rendertron.
+    ctx.set('x-renderer', 'rendertron');
+    ctx.status = preview.status;
+    ctx.body = preview;
   }
 
   async handleScreenshotRequest(ctx: Koa.Context, url: string) {

@@ -14,10 +14,6 @@ and serializes the response back to the original request. To use Rendertron, you
 configures [middleware](#middleware) to determine whether to proxy a request to Rendertron.
 Rendertron is compatible with all client side technologies, including [web components](#web-components).
 
-**Demo endpoint**
-
-A demo Rendertron service is available at https://render-tron.appspot.com/. It is not designed
-to be used as a production endpoint. You can use it, but there are no uptime guarantees.
 
 ## Contents
 - [Middleware](#middleware)
@@ -166,7 +162,7 @@ on how to deploy run headless Chrome in Docker.
 When deploying the service, set configuration variables by including a `config.json` in the
 root. Available configuration options:
  * `timeout` default `10000` - set the timeout used to render the target page. 
- * `port` default `3000` - set the port to use for running and listening the rendertron service. Note if process.env.PORT is set, it will be used instead.
+ * `port` default `9902` - set the port to use for running and listening the rendertron service. Note if process.env.PORT is set, it will be used instead.
  * `host` default `0.0.0.0` - set the hostname to use for running and listening the rendertron service. Note if process.env.HOST is set, it will be used instead.
  * `width` default `1000` - set the width (resolution) to be used for rendering the page.
  * `height` default `1000` - set the height (resolution) to be used for rendering the page.
@@ -177,3 +173,24 @@ If you're having troubles with getting Headless Chrome to run in your
 environment, refer to the
 [troubleshooting guide](https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md)
 for Puppeteer.
+
+### Differences from original repo
+Another request for getting link preview was added :
+```
+GET /preview/?url=<url>
+```
+
+Options are the same as for /render request.  
+Response:
+```
+export type PreviewResponse = {
+  status: number;
+  title: string | null;
+  description: string | null;
+  domain: string;
+  img: string | null;
+};
+```
+
+Preview implementation is based on [this article](https://andrejgajdos.com/how-to-create-a-link-preview/).
+

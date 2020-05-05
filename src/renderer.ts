@@ -1,12 +1,21 @@
 import * as puppeteer from 'puppeteer';
+import { Page } from 'puppeteer';
 import * as url from 'url';
 
-import {Config} from './config';
+import { Config } from './config';
 
-type SerializedResponse = {
+export type SerializedResponse = {
   status: number;
   customHeaders: Map<string, string>;
   content: string;
+};
+
+export type PreviewResponse = {
+  status: number;
+  title: string | null;
+  description: string | null;
+  domain: string;
+  img: string | null;
 };
 
 type ViewportDimensions = {
@@ -29,8 +38,8 @@ export class Renderer {
     this.config = config;
   }
 
-  async serialize(requestUrl: string, isMobile: boolean):
-      Promise<SerializedResponse> {
+  async serialize(requestUrl: string, isMobile: boolean, preview: boolean = false):
+      Promise<SerializedResponse | PreviewResponse> {
     /**
      * Executed on the page after the page has loaded. Strips script and
      * import tags to prevent further loading of resources.
@@ -154,18 +163,160 @@ export class Renderer {
         })
         .catch(() => undefined);
 
-    // Remove script & import tags.
-    await page.evaluate(stripPage);
-    // Inject <base> tag with the origin of the request (ie. no path).
-    const parsedUrl = url.parse(requestUrl);
-    await page.evaluate(
+    if (preview) {
+      const result = {
+        title: await this.getTitle(page),
+        description: await this.getDescription(page),
+        domain: await this.getDomainName(page, requestUrl),
+        img: await this.getImg(page, requestUrl),
+        status: statusCode
+      };
+      await page.close();
+      return result;
+    } else {
+      // Remove script & import tags.
+      await page.evaluate(stripPage);
+      // Inject <base> tag with the origin of the request (ie. no path).
+      const parsedUrl = url.parse(requestUrl);
+      await page.evaluate(
         injectBaseHref, `${parsedUrl.protocol}//${parsedUrl.host}`);
 
-    // Serialize page.
-    const result = await page.content() as string;
+      // Serialize page.
+      const result = await page.content() as string;
 
-    await page.close();
-    return {status: statusCode, customHeaders: customHeaders ? new Map(JSON.parse(customHeaders)) : new Map(), content: result};
+      await page.close();
+      return { status: statusCode, customHeaders: customHeaders ? new Map(JSON.parse(customHeaders)) : new Map(), content: result };
+    }
+  }
+
+  async getImg(page: Page, uri: string) {
+    return page.evaluate(async () => {
+      const ogImg = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
+      if (
+        ogImg != null &&
+        ogImg.content.length > 0
+      ) {
+        return ogImg.content;
+      }
+      const imgRelLink = document.querySelector('link[rel="image_src"]') as HTMLLinkElement;
+      if (
+        imgRelLink != null &&
+        imgRelLink.href.length > 0
+      ) {
+        return imgRelLink.href;
+      }
+      const twitterImg = document.querySelector('meta[name="twitter:image"]') as HTMLMetaElement;
+      if (
+        twitterImg != null &&
+        twitterImg.content.length > 0
+      ) {
+        return twitterImg.content;
+      }
+
+      let imgs = Array.from(document.getElementsByTagName('img'));
+      if (imgs.length > 0) {
+        imgs = imgs.filter((img) => {
+          let addImg = true;
+          if (img.naturalWidth > img.naturalHeight) {
+            if (img.naturalWidth / img.naturalHeight > 3) {
+              addImg = false;
+            }
+          } else {
+            if (img.naturalHeight / img.naturalWidth > 3) {
+              addImg = false;
+            }
+          }
+          if (img.naturalHeight <= 50 || img.naturalWidth <= 50) {
+            addImg = false;
+          }
+          return addImg;
+        });
+        imgs.forEach((img) =>
+          img.src.indexOf('//') === -1
+            ? (img.src = `${new URL(uri).origin}/${img.src}`)
+            : img.src
+        );
+        return imgs[0].src;
+      }
+      return null;
+    });
+  }
+
+  async getTitle(page: Page) {
+    return page.evaluate(() => {
+      const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement;
+      if (ogTitle != null && ogTitle.content.length > 0) {
+        return ogTitle.content;
+      }
+      const twitterTitle = document.querySelector('meta[name="twitter:title"]') as HTMLMetaElement;
+      if (twitterTitle != null && twitterTitle.content.length > 0) {
+        return twitterTitle.content;
+      }
+      const docTitle = document.title;
+      if (docTitle != null && docTitle.length > 0) {
+        return docTitle;
+      }
+      const h1 = (document.querySelector('h1') as HTMLHeadElement).innerHTML;
+      if (h1 != null && h1.length > 0) {
+        return h1;
+      }
+      const h2 = (document.querySelector('h1') as HTMLHeadElement).innerHTML;
+      if (h2 != null && h2.length > 0) {
+        return h2;
+      }
+      return null;
+    });
+  }
+
+  async getDescription(page: Page) {
+    return page.evaluate(() => {
+      const ogDescription = document.querySelector(
+        'meta[property="og:description"]'
+      ) as HTMLMetaElement;
+      if (ogDescription != null && ogDescription.content.length > 0) {
+        return ogDescription.content;
+      }
+      const twitterDescription = document.querySelector(
+        'meta[name="twitter:description"]'
+      ) as HTMLMetaElement;
+      if (twitterDescription != null && twitterDescription.content.length > 0) {
+        return twitterDescription.content;
+      }
+      const metaDescription = document.querySelector('meta[name="description"]') as HTMLMetaElement;
+      if (metaDescription != null && metaDescription.content.length > 0) {
+        return metaDescription.content;
+      }
+      const paragraphs = document.querySelectorAll('p');
+      let fstVisibleParagraph = null;
+      for (let i = 0; i < paragraphs.length; i++) {
+        if (
+          // if object is visible in dom
+          paragraphs[i].offsetParent !== null &&
+          paragraphs[i].childElementCount !== 0
+        ) {
+          fstVisibleParagraph = paragraphs[i].textContent;
+          break;
+        }
+      }
+      return fstVisibleParagraph;
+    });
+  }
+
+  async getDomainName(page: Page, uri: string) {
+    const domainName = await page.evaluate(() => {
+      const canonicalLink = document.querySelector('link[rel=canonical]') as HTMLLinkElement;
+      if (canonicalLink != null && canonicalLink.href.length > 0) {
+        return canonicalLink.href;
+      }
+      const ogUrlMeta = document.querySelector('meta[property="og:url"]') as HTMLMetaElement;
+      if (ogUrlMeta != null && ogUrlMeta.content.length > 0) {
+        return ogUrlMeta.content;
+      }
+      return null;
+    });
+    return domainName != null
+      ? new URL(domainName).hostname.replace('www.', '')
+      : new URL(uri).hostname.replace('www.', '');
   }
 
   async screenshot(
