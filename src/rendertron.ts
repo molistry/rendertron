@@ -2,9 +2,7 @@ import * as Koa from 'koa';
 import * as bodyParser from 'koa-bodyparser';
 import * as koaCompress from 'koa-compress';
 import * as route from 'koa-route';
-import * as koaSend from 'koa-send';
 import * as koaLogger from 'koa-logger';
-import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
@@ -47,10 +45,6 @@ export class Rendertron {
 
     this.app.use(bodyParser());
 
-    this.app.use(route.get('/', async (ctx: Koa.Context) => {
-      await koaSend(
-        ctx, 'index.html', { root: path.resolve(__dirname, '../src') });
-    }));
     this.app.use(
       route.get('/_ah/health', (ctx: Koa.Context) => ctx.body = 'OK'));
 
@@ -92,12 +86,16 @@ export class Rendertron {
     return false;
   }
 
+  authorized(token: string) {
+    return token === this.config.token;
+  }
+
   async handleRenderRequest(ctx: Koa.Context, url: string) {
     if (!this.renderer) {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url)) {
+    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
       ctx.status = 403;
       return;
     }
@@ -124,7 +122,7 @@ export class Rendertron {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url)) {
+    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
       ctx.status = 403;
       return;
     }
@@ -148,7 +146,7 @@ export class Rendertron {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url)) {
+    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
       ctx.status = 403;
       return;
     }

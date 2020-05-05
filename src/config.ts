@@ -33,6 +33,7 @@ export type Config = {
     width: number;
     height: number;
     headers: { [key: string]: string };
+    token: string;
 };
 
 export class ConfigManager {
@@ -43,7 +44,8 @@ export class ConfigManager {
         host: '0.0.0.0',
         width: 1000,
         height: 1000,
-        headers: {}
+        headers: {},
+        token: ''
     };
 
     static async getConfiguration(): Promise<Config> {
@@ -54,4 +56,3 @@ export class ConfigManager {
         return ConfigManager.config;
     }
 }
-

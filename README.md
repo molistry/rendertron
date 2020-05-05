@@ -33,6 +33,7 @@ Rendertron is compatible with all client side technologies, including [web compo
   - [Deploying using Docker](#deploying-using-docker)
   - [Config](#config)
   - [Troubleshooting](#troubleshooting)
+- [Differences from original repo](#differences-from-original-repo) 
 
 ## Middleware
 Once you have the service up and running, you'll need to implement the differential serving
@@ -174,7 +175,7 @@ environment, refer to the
 [troubleshooting guide](https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md)
 for Puppeteer.
 
-### Differences from original repo
+## Differences from original repo
 Another request for getting link preview was added :
 ```
 GET /preview/?url=<url>
