@@ -15,7 +15,7 @@ export type PreviewResponse = {
   title: string | null;
   description: string | null;
   domain: string;
-  img: string | null;
+  image: string | null;
 };
 
 type ViewportDimensions = {
@@ -117,7 +117,7 @@ export class Renderer {
           title: null,
           description: null,
           domain: await this.getDomainName(null, requestUrl),
-          img: null,
+          image: null,
           status: 408
         };
       } else {
@@ -178,7 +178,7 @@ export class Renderer {
         title: await this.getTitle(page),
         description: await this.getDescription(page),
         domain: await this.getDomainName(page, requestUrl),
-        img: await this.getImg(page, requestUrl),
+        image: await this.getImg(page, requestUrl),
         status: statusCode
       };
       await page.close();

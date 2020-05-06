@@ -189,7 +189,7 @@ export type PreviewResponse = {
   title: string | null;
   description: string | null;
   domain: string;
-  img: string | null;
+  image: string | null;
 };
 ```
 
