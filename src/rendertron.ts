@@ -95,8 +95,13 @@ export class Rendertron {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
+    if (!this.authorized(ctx.headers.token)) {
       ctx.status = 403;
+      return;
+    }
+
+    if (this.restricted(url)) {
+      ctx.status = 400;
       return;
     }
 
@@ -122,8 +127,13 @@ export class Rendertron {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
+    if (!this.authorized(ctx.headers.token)) {
       ctx.status = 403;
+      return;
+    }
+
+    if (this.restricted(url)) {
+      ctx.status = 400;
       return;
     }
 
@@ -146,8 +156,13 @@ export class Rendertron {
       throw (new Error('No renderer initalized yet.'));
     }
 
-    if (this.restricted(url) || !this.authorized(ctx.headers.token)) {
+    if (!this.authorized(ctx.headers.token)) {
       ctx.status = 403;
+      return;
+    }
+
+    if (this.restricted(url)) {
+      ctx.status = 400;
       return;
     }
 
